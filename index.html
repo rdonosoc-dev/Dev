@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Torneos Admin</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- SVG ICON SPRITE — Lucide icons -->
+    <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+        <symbol id="ic-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+            <path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+        </symbol>
+        <symbol id="ic-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+        </symbol>
+        <symbol id="ic-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14"/><path d="M12 5v14"/>
+        </symbol>
+        <symbol id="ic-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </symbol>
+        <symbol id="ic-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </symbol>
+        <symbol id="ic-bar-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>
+        </symbol>
+        <symbol id="ic-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>
+        </symbol>
+        <symbol id="ic-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>
+        </symbol>
+        <symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </symbol>
+        <symbol id="ic-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
+        </symbol>
+        <symbol id="ic-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>
+        </symbol>
+        <symbol id="ic-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>
+        </symbol>
+        <symbol id="ic-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+        </symbol>
+        <symbol id="ic-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </symbol>
+        <symbol id="ic-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+            <path d="M12 9v4"/><path d="M12 17h.01"/>
+        </symbol>
+        <symbol id="ic-medal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/>
+            <path d="M11 12 5.12 2.2"/><path d="m13 12 5.88-9.8"/><path d="M8 7h8"/>
+            <circle cx="12" cy="17" r="5"/><path d="M12 18v-2h-.5"/>
+        </symbol>
+        <symbol id="ic-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>
+        </symbol>
+        <symbol id="ic-reset" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
+        </symbol>
+        <symbol id="ic-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+        </symbol>
+        <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 6 9 17l-5-5"/>
+        </symbol>
+        <symbol id="ic-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+            <line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>
+        </symbol>
+        <symbol id="ic-gift" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 12 20 22 4 22 4 12"/><rect width="20" height="5" x="2" y="7"/>
+            <line x1="12" x2="12" y1="22" y2="7"/>
+            <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
+            <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+        </symbol>
+        <symbol id="ic-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+        </symbol>
+        <symbol id="ic-layout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>
+        </symbol>
+        <symbol id="ic-trending" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+        </symbol>
+        <symbol id="ic-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
+            <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>
+            <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/>
+            <path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>
+        </symbol>
+    </svg>
+
+    <div id="app">
+        <!-- LOGIN SCREEN -->
+        <div id="login-screen" class="login-screen">
+            <div class="login-card">
+                <div class="login-logo">
+                    <div class="login-logo-mark">
+                        <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+                            <rect width="32" height="32" rx="8" fill="#6366f1"/>
+                            <path d="M8 12h16M8 16h12M8 20h8" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h1>Torneos<span>Admin</span></h1>
+                </div>
+                <p class="login-subtitle">Selecciona tu perfil para continuar</p>
+                <div class="login-roles">
+                    <button class="login-role-btn" onclick="app.login('admin')">
+                        <div class="role-icon-wrap role-icon-admin">
+                            <svg width="22" height="22"><use href="#ic-shield"/></svg>
+                        </div>
+                        <div class="role-text">
+                            <div class="role-title">Administrador</div>
+                            <div class="role-desc">Crear, editar y gestionar torneos, jugadores y resultados</div>
+                        </div>
+                        <svg class="role-chevron" width="16" height="16"><use href="#ic-arrow-left"/></svg>
+                    </button>
+                    <button class="login-role-btn" onclick="app.login('viewer')">
+                        <div class="role-icon-wrap role-icon-viewer">
+                            <svg width="22" height="22"><use href="#ic-eye"/></svg>
+                        </div>
+                        <div class="role-text">
+                            <div class="role-title">Usuario / Consulta</div>
+                            <div class="role-desc">Ver torneos, brackets y resultados. Solo lectura.</div>
+                        </div>
+                        <svg class="role-chevron" width="16" height="16"><use href="#ic-arrow-left"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN APP -->
+        <div id="main-app" style="display:none;">
+            <header class="header">
+                <div class="logo" onclick="app.goHome()">
+                    <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
+                        <rect width="32" height="32" rx="8" fill="#6366f1"/>
+                        <path d="M8 12h16M8 16h12M8 20h8" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+                    <h1>Torneos<span>Admin</span></h1>
+                </div>
+                <div class="header-actions">
+                    <span class="role-badge" id="current-role-badge">
+                        <svg width="11" height="11"><use href="#ic-shield"/></svg>
+                        Admin
+                    </span>
+                    <button class="btn btn-sm btn-secondary" onclick="app.logout()">
+                        <svg width="13" height="13"><use href="#ic-logout"/></svg>
+                        Salir
+                    </button>
+                </div>
+                <nav class="nav-tabs" id="main-nav">
+                    <button class="nav-tab active" data-view="tournaments">
+                        <svg width="14" height="14"><use href="#ic-home"/></svg>
+                        Torneos
+                    </button>
+                    <button class="nav-tab" data-view="new-tournament" id="nav-new-tournament">
+                        <svg width="14" height="14"><use href="#ic-plus"/></svg>
+                        Nuevo Torneo
+                    </button>
+                </nav>
+                <nav class="nav-tabs" id="tournament-nav" style="display:none;">
+                    <button class="nav-tab nav-back" onclick="app.goHome()">
+                        <svg width="14" height="14"><use href="#ic-arrow-left"/></svg>
+                        Volver
+                    </button>
+                    <button class="nav-tab active" data-view="players">
+                        <svg width="14" height="14"><use href="#ic-users"/></svg>
+                        Jugadores
+                    </button>
+                    <button class="nav-tab" data-view="bracket">
+                        <svg width="14" height="14"><use href="#ic-layout"/></svg>
+                        Bracket
+                    </button>
+                    <button class="nav-tab" data-view="results">
+                        <svg width="14" height="14"><use href="#ic-trending"/></svg>
+                        Resultados
+                    </button>
+                </nav>
+            </header>
+
+            <main class="main">
+                <!-- VIEW: TOURNAMENTS -->
+                <section id="view-tournaments" class="view active">
+                    <div class="page-header">
+                        <div class="page-header-icon">
+                            <svg width="20" height="20"><use href="#ic-trophy"/></svg>
+                        </div>
+                        <div>
+                            <h2>Mis Torneos</h2>
+                            <p id="tournaments-subtitle">Gestiona todos tus torneos por club.</p>
+                        </div>
+                    </div>
+                    <div class="tournaments-grid" id="tournaments-grid">
+                        <div class="empty-state">
+                            <div class="empty-icon"><svg width="40" height="40"><use href="#ic-trophy"/></svg></div>
+                            <h3>No hay torneos creados</h3>
+                            <p id="empty-tournaments-text">Los torneos aparecerán aquí cuando los crees.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW: NEW TOURNAMENT -->
+                <section id="view-new-tournament" class="view">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-header-row">
+                                <div class="card-header-icon icon-primary">
+                                    <svg width="17" height="17"><use href="#ic-plus"/></svg>
+                                </div>
+                                <div>
+                                    <h2>Crear Nuevo Torneo</h2>
+                                    <p>Configura los datos básicos. Luego podrás agregar jugadores.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tournament-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Nombre del Torneo *</label>
+                                    <input type="text" id="tournament-name" placeholder="Ej: Torneo de Verano 2026" maxlength="50">
+                                </div>
+                                <div class="form-group">
+                                    <label>Club / Organización *</label>
+                                    <input type="text" id="tournament-club" placeholder="Ej: Club Deportivo Santiago" maxlength="50">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Deporte / Disciplina</label>
+                                    <input type="text" id="tournament-sport" placeholder="Ej: Fútbol, Tenis, Pádel..." maxlength="30">
+                                </div>
+                                <div class="form-group">
+                                    <label>Cantidad esperada de jugadores</label>
+                                    <input type="number" id="tournament-players-count" placeholder="Ej: 8, 16, 32..." min="2" max="64">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Fecha del Torneo</label>
+                                    <input type="date" id="tournament-date">
+                                </div>
+                                <div class="form-group">
+                                    <label>Formato del bracket</label>
+                                    <select id="tournament-format">
+                                        <option value="single-elimination">Eliminación Simple</option>
+                                        <option value="double-elimination" disabled>Eliminación Doble (Próximamente)</option>
+                                        <option value="round-robin" disabled>Todos contra Todos (Próximamente)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Formato de partidos</label>
+                                    <div class="sets-format-picker" id="tournament-sets-format">
+                                        <button type="button" class="sets-pick-btn active" data-sets="1">1 set</button>
+                                        <button type="button" class="sets-pick-btn" data-sets="3">Al mejor de 3</button>
+                                        <button type="button" class="sets-pick-btn" data-sets="5">Al mejor de 5</button>
+                                    </div>
+                                    <input type="hidden" id="tournament-sets-format-value" value="1">
+                                </div>
+                                <div class="form-group"></div>
+                            </div>
+                            <div class="form-actions">
+                                <button class="btn btn-secondary" onclick="app.switchMainView('tournaments')">Cancelar</button>
+                                <button id="create-tournament-btn" class="btn btn-primary">
+                                    <svg width="15" height="15"><use href="#ic-zap"/></svg>
+                                    Crear Torneo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW: PLAYERS -->
+                <section id="view-players" class="view">
+                    <div class="tournament-banner" id="players-banner">
+                        <div class="banner-info">
+                            <h3 id="players-tournament-name">Torneo</h3>
+                            <span class="badge badge-info" id="players-club">Club</span>
+                            <span class="badge" id="players-status">En preparación</span>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-header-row">
+                                <div class="card-header-icon icon-blue">
+                                    <svg width="17" height="17"><use href="#ic-users"/></svg>
+                                </div>
+                                <div>
+                                    <h2>Jugadores</h2>
+                                    <p id="players-subtitle">Agrega jugadores con su ranking.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="player-form admin-only" id="player-form-container">
+                            <div class="form-group">
+                                <input type="text" id="player-name" placeholder="Nombre del jugador" maxlength="30">
+                            </div>
+                            <div class="form-group">
+                                <input type="number" id="player-ranking" placeholder="Ranking" min="1">
+                            </div>
+                            <div class="form-group">
+                                <input type="number" id="player-points" placeholder="Puntos oficiales" min="1">
+                            </div>
+                            <button id="add-player" class="btn btn-primary">
+                                <svg width="14" height="14"><use href="#ic-plus"/></svg>
+                                Agregar
+                            </button>
+                        </div>
+                        <div class="players-stats">
+                            <span class="badge" id="player-count">0 jugadores</span>
+                            <span class="badge badge-info" id="bracket-size">Bracket: -</span>
+                            <span class="badge badge-warning" id="expected-count" style="display:none">Esperados: -</span>
+                        </div>
+                        <div class="players-list" id="players-list">
+                            <div class="empty-state">
+                                <div class="empty-icon"><svg width="40" height="40"><use href="#ic-target"/></svg></div>
+                                <h3>Sin jugadores</h3>
+                                <p>Agrega al menos 2 jugadores para generar un bracket.</p>
+                            </div>
+                        </div>
+                        <div class="actions-bar admin-only" id="players-actions" style="display:none;">
+                            <button id="clear-players" class="btn btn-danger-outline">
+                                <svg width="14" height="14"><use href="#ic-trash"/></svg>
+                                Limpiar todo
+                            </button>
+                            <button id="generate-bracket-btn" class="btn btn-success">
+                                <svg width="14" height="14"><use href="#ic-zap"/></svg>
+                                Generar Bracket
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW: BRACKET -->
+                <section id="view-bracket" class="view">
+                    <div class="tournament-banner" id="bracket-banner">
+                        <div class="banner-info">
+                            <h3 id="bracket-tournament-name">Torneo</h3>
+                            <span class="badge badge-info" id="bracket-club">Club</span>
+                            <span class="badge" id="bracket-status">En progreso</span>
+                        </div>
+                    </div>
+                    <div id="bracket-container"></div>
+                </section>
+
+                <!-- VIEW: RESULTS -->
+                <section id="view-results" class="view">
+                    <div class="tournament-banner" id="results-banner">
+                        <div class="banner-info">
+                            <h3 id="results-tournament-name">Torneo</h3>
+                            <span class="badge badge-info" id="results-club">Club</span>
+                            <span class="badge" id="results-status">Finalizado</span>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-header-row">
+                                <div class="card-header-icon icon-green">
+                                    <svg width="17" height="17"><use href="#ic-bar-chart"/></svg>
+                                </div>
+                                <div>
+                                    <h2>Resultados &amp; Estadísticas</h2>
+                                    <p>Resumen del torneo y clasificación final.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="results-container" id="results-container">
+                            <div class="empty-state">
+                                <div class="empty-icon"><svg width="40" height="40"><use href="#ic-trending"/></svg></div>
+                                <h3>Sin resultados</h3>
+                                <p>Los resultados aparecerán aquí cuando se completen partidos.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+
+        <!-- MODAL: EDIT MATCH -->
+        <div id="match-modal" class="modal">
+            <div class="modal-overlay"></div>
+            <div class="modal-content match-modal-wide">
+                <div class="modal-header">
+                    <div class="modal-title-row">
+                        <div class="modal-header-icon">
+                            <svg width="17" height="17"><use href="#ic-medal"/></svg>
+                        </div>
+                        <h3 id="match-modal-title">Registrar Resultado</h3>
+                    </div>
+                    <button class="modal-close">
+                        <svg width="17" height="17"><use href="#ic-x"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="match-edit-warning" class="match-edit-warning" style="display:none;">
+                        <svg width="15" height="15" style="flex-shrink:0;color:var(--warning)"><use href="#ic-alert"/></svg>
+                        <span>Estás editando un resultado ya ingresado. Si el ganador cambia, las rondas siguientes se actualizarán automáticamente.</span>
+                    </div>
+                    <div class="sets-format-row">
+                        <div class="match-info-inline" id="modal-match-info">Ronda 1 • Partido #1</div>
+                        <div class="match-format-badge" id="modal-format-badge">Al mejor de 3</div>
+                    </div>
+                    <div class="sets-scoreboard" id="sets-scoreboard"></div>
+                    <div class="sets-live-summary" id="sets-live-summary"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="modal-cancel">Cancelar</button>
+                    <button class="btn btn-primary" id="modal-save">
+                        <svg width="14" height="14"><use href="#ic-save"/></svg>
+                        Guardar Resultado
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: DELETE TOURNAMENT -->
+        <div id="delete-modal" class="modal">
+            <div class="modal-overlay"></div>
+            <div class="modal-content modal-sm">
+                <div class="modal-header">
+                    <div class="modal-title-row">
+                        <div class="modal-header-icon modal-icon-danger">
+                            <svg width="17" height="17"><use href="#ic-alert"/></svg>
+                        </div>
+                        <h3>Eliminar Torneo</h3>
+                    </div>
+                    <button class="modal-close" onclick="app.closeDeleteModal()">
+                        <svg width="17" height="17"><use href="#ic-x"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Estás seguro de eliminar el torneo <strong id="delete-tournament-name"></strong>?</p>
+                    <p class="text-muted">Esta acción no se puede deshacer. Se perderán todos los jugadores, bracket y resultados.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="app.closeDeleteModal()">Cancelar</button>
+                    <button class="btn btn-danger" id="confirm-delete-btn">
+                        <svg width="14" height="14"><use href="#ic-trash"/></svg>
+                        Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: EDIT TOURNAMENT -->
+        <div id="edit-tournament-modal" class="modal">
+            <div class="modal-overlay" onclick="app.closeEditTournamentModal()"></div>
+            <div class="modal-content" style="max-width:560px;">
+                <div class="modal-header">
+                    <div class="modal-title-row">
+                        <div class="modal-header-icon">
+                            <svg width="17" height="17"><use href="#ic-pencil"/></svg>
+                        </div>
+                        <h3>Editar Torneo</h3>
+                    </div>
+                    <button class="modal-close" onclick="app.closeEditTournamentModal()">
+                        <svg width="17" height="17"><use href="#ic-x"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="edit-tournament-id">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nombre del Torneo *</label>
+                            <input type="text" id="edit-tournament-name" placeholder="Nombre del torneo" maxlength="50">
+                        </div>
+                        <div class="form-group">
+                            <label>Club / Organización *</label>
+                            <input type="text" id="edit-tournament-club" placeholder="Club u organización" maxlength="50">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Deporte / Disciplina</label>
+                            <input type="text" id="edit-tournament-sport" placeholder="Deporte o disciplina" maxlength="30">
+                        </div>
+                        <div class="form-group">
+                            <label>Jugadores esperados</label>
+                            <input type="number" id="edit-tournament-players-count" placeholder="Ej: 16" min="2" max="64">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Fecha</label>
+                            <input type="date" id="edit-tournament-date">
+                        </div>
+                        <div class="form-group">
+                            <label>Formato de partidos</label>
+                            <div class="sets-format-picker" id="edit-tournament-sets-format">
+                                <button type="button" class="sets-pick-btn" data-sets="1">1 set</button>
+                                <button type="button" class="sets-pick-btn active" data-sets="3">Al mejor de 3</button>
+                                <button type="button" class="sets-pick-btn" data-sets="5">Al mejor de 5</button>
+                            </div>
+                            <input type="hidden" id="edit-tournament-sets-format-value" value="3">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="app.closeEditTournamentModal()">Cancelar</button>
+                    <button class="btn btn-primary" onclick="app.saveEditTournament()">
+                        <svg width="14" height="14"><use href="#ic-save"/></svg>
+                        Guardar cambios
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: PRIZE AWARD -->
+        <div id="prize-modal" class="modal">
+            <div class="modal-overlay" onclick="app.closePrizeModal()"></div>
+            <div class="modal-content prize-modal-content">
+                <div class="modal-header prize-modal-header">
+                    <div class="modal-title-row">
+                        <div class="modal-header-icon modal-icon-gold">
+                            <svg width="17" height="17"><use href="#ic-gift"/></svg>
+                        </div>
+                        <div>
+                            <h3 id="prize-modal-title">Otorgar Puntos de Premio</h3>
+                            <p id="prize-modal-subtitle" class="prize-modal-subtitle">Configura los puntos a otorgar por posición</p>
+                        </div>
+                    </div>
+                    <button class="modal-close" onclick="app.closePrizeModal()">
+                        <svg width="17" height="17"><use href="#ic-x"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="podium-preview" id="podium-preview"></div>
+                    <div class="prize-inputs" id="prize-inputs"></div>
+                    <div class="ranking-update-preview" id="ranking-update-preview" style="display:none;">
+                        <div class="ranking-preview-title">
+                            <svg width="13" height="13"><use href="#ic-bar-chart"/></svg>
+                            Vista previa del ranking actualizado
+                        </div>
+                        <div id="ranking-preview-list"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="app.closePrizeModal()">Cancelar</button>
+                    <button class="btn btn-outline-primary" onclick="app.previewRankingUpdate()">
+                        <svg width="14" height="14"><use href="#ic-eye"/></svg>
+                        Vista previa
+                    </button>
+                    <button class="btn btn-primary" id="award-prizes-btn" onclick="app.awardPrizes()">
+                        <svg width="14" height="14"><use href="#ic-gift"/></svg>
+                        Otorgar Puntos
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="toast-container"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
