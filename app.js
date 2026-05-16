@@ -910,7 +910,6 @@ class TournamentApp {
     // ============================================================
     generateBracket() {
         if (!this.checkAdmin('generar brackets')) return;
-
         const tournament = this.getCurrentTournament();
         if (!tournament) return;
 
@@ -919,34 +918,31 @@ class TournamentApp {
             return;
         }
 
-        const sorted = [...tournament.players].sort((a, b) => a.ranking - b.ranking);
+        if (tournament.format === 'round-robin') {
+            this._generateRoundRobin(tournament);
+        } else {
+            this._generateSingleElimination(tournament);
+        }
+    }
 
-        sorted.forEach((player, index) => {
-            player.seedNumber = index + 1;
-        });
+    _generateSingleElimination(tournament) {
+        const sorted = [...tournament.players].sort((a, b) => a.ranking - b.ranking);
+        sorted.forEach((player, index) => { player.seedNumber = index + 1; });
 
         const n = sorted.length;
         const bracketSize = Math.pow(2, Math.ceil(Math.log2(n)));
         const byes = bracketSize - n;
-
         const seeds = this.distributeSeeds(sorted, bracketSize);
 
         const round1Matches = [];
         for (let i = 0; i < bracketSize / 2; i++) {
             const p1 = seeds[i * 2];
             const p2 = seeds[i * 2 + 1];
-
             round1Matches.push({
-                id: `r1-m${i + 1}`,
-                round: 1,
-                matchNumber: i + 1,
-                player1: p1,
-                player2: p2,
-                score1: null,
-                score2: null,
-                winner: null,
-                completed: false,
-                isBye: !p2
+                id: `r1-m${i + 1}`, round: 1, matchNumber: i + 1,
+                player1: p1, player2: p2,
+                score1: null, score2: null, winner: null,
+                completed: false, isBye: !p2
             });
         }
 
@@ -959,9 +955,7 @@ class TournamentApp {
 
         tournament.bracket = {
             type: 'single-elimination',
-            totalPlayers: n,
-            bracketSize: bracketSize,
-            byes: byes,
+            totalPlayers: n, bracketSize, byes,
             rounds: Math.log2(bracketSize),
             createdAt: new Date().toISOString()
         };
@@ -973,6 +967,61 @@ class TournamentApp {
         this.updateBanners(tournament);
         this.switchTournamentView('bracket');
         this.showToast(`Bracket generado · ${n} jugadores, ${byes} byes`, 'success');
+    }
+
+    _generateRoundRobin(tournament) {
+        const players = [...tournament.players].sort((a, b) => a.ranking - b.ranking);
+        const n = players.length;
+
+        if (n < 2 || n > 8) {
+            this.showToast('Round Robin soporta entre 2 y 8 jugadores', 'error');
+            return;
+        }
+
+        // Generate all pairs using round-robin scheduling
+        // For n players, we have n*(n-1)/2 matches
+        // Distribute across ceil(n/2) rounds (each player plays once per round)
+        const matches = [];
+        let matchNum = 1;
+
+        // Build schedule: for even n use standard algorithm; for odd add a "bye" player
+        const sched = [...players];
+        if (sched.length % 2 !== 0) sched.push(null); // ghost bye player
+        const rounds = sched.length - 1;
+        const half = sched.length / 2;
+
+        for (let r = 0; r < rounds; r++) {
+            for (let i = 0; i < half; i++) {
+                const p1 = sched[i];
+                const p2 = sched[sched.length - 1 - i];
+                if (p1 && p2) {
+                    matches.push({
+                        id: `rr-r${r + 1}-m${i + 1}`,
+                        round: r + 1,
+                        matchNumber: matchNum++,
+                        player1: p1, player2: p2,
+                        score1: null, score2: null,
+                        sets: null, setsFormat: tournament.setsFormat || 1,
+                        winner: null, completed: false, isBye: false
+                    });
+                }
+            }
+            // Rotate: fix first element, rotate rest
+            sched.splice(1, 0, sched.pop());
+        }
+
+        tournament.bracket = {
+            type: 'round-robin',
+            totalPlayers: n,
+            rounds: rounds,
+            createdAt: new Date().toISOString()
+        };
+        tournament.matches = matches;
+
+        this._saveTournament(tournament);
+        this.updateBanners(tournament);
+        this.switchTournamentView('bracket');
+        this.showToast(`Round Robin generado · ${n} jugadores · ${matches.length} partidos`, 'success');
     }
 
     distributeSeeds(players, bracketSize) {
@@ -1053,13 +1102,225 @@ class TournamentApp {
                     <div class="empty-icon"><svg width="32" height="32"><use href="#ic-layout"/></svg></div>
                     <h3>No hay bracket generado</h3>
                     <p>${isAdmin ? 'Ve a la pestaña "Jugadores" y genera el bracket' : 'El bracket aparecerá aquí cuando el administrador lo genere.'}</p>
-                </div>
-            `;
+                </div>`;
             return;
         }
 
-        const completed = tournament.matches.filter(m => m.completed).length;
+        if (tournament.bracket.type === 'round-robin') {
+            this._renderRoundRobin(tournament, container, isAdmin);
+            return;
+        }
+
+        this._renderSingleEliminationBracket(tournament, container, isAdmin);
+    }
+
+    _renderRoundRobin(tournament, container, isAdmin) {
+        const matches = tournament.matches;
+        const completed = matches.filter(m => m.completed).length;
+        const total = matches.length;
+
+        // Group by round
+        const rounds = {};
+        matches.forEach(m => {
+            if (!rounds[m.round]) rounds[m.round] = [];
+            rounds[m.round].push(m);
+        });
+
+        container.innerHTML = '';
+        container.style.padding = '0';
+
+        // ── Top bar ──
+        const bar = document.createElement('div');
+        bar.className = 'bracket-top-bar';
+        bar.innerHTML =
+            '<div class="bracket-meta">' +
+                '<span class="badge">Round Robin</span>' +
+                '<span class="badge badge-info">' + total + ' partidos</span>' +
+                '<span class="badge badge-success">' + completed + ' completados</span>' +
+            '</div>' +
+            (isAdmin ? '<div class="bracket-actions">' +
+                '<button class="btn btn-sm btn-danger-outline admin-only" onclick="app.resetBracket()">' +
+                    '<svg width="13" height="13"><use href="#ic-reset"/></svg> Reiniciar' +
+                '</button>' +
+                '<button class="btn btn-sm btn-secondary" onclick="app.exportBracket()">' +
+                    '<svg width="13" height="13"><use href="#ic-download"/></svg> Exportar' +
+                '</button>' +
+            '</div>' : '');
+        container.appendChild(bar);
+
+        // ── Scroll wrapper ──
+        const scroll = document.createElement('div');
+        scroll.style.cssText = 'overflow-x:auto; padding: 20px;';
+
+        // ── Two-column layout: rounds on left, standings on right ──
+        const layout = document.createElement('div');
+        layout.className = 'rr-layout';
+
+        // Left: rounds
+        const roundsCol = document.createElement('div');
+        roundsCol.className = 'rr-rounds-col';
+
+        Object.keys(rounds).sort((a,b) => a-b).forEach(r => {
+            const roundMatches = rounds[r];
+            const roundDiv = document.createElement('div');
+            roundDiv.className = 'rr-round';
+
+            const header = document.createElement('div');
+            header.className = 'rr-round-header';
+            header.textContent = 'Ronda ' + r;
+            roundDiv.appendChild(header);
+
+            roundMatches.forEach(match => {
+                const card = this._buildRRMatchCard(match, tournament, isAdmin);
+                roundDiv.appendChild(card);
+            });
+
+            roundsCol.appendChild(roundDiv);
+        });
+
+        // Right: standings table
+        const standingsCol = document.createElement('div');
+        standingsCol.className = 'rr-standings-col';
+        standingsCol.innerHTML = this._buildRRStandingsHTML(tournament);
+
+        layout.appendChild(roundsCol);
+        layout.appendChild(standingsCol);
+        scroll.appendChild(layout);
+        container.appendChild(scroll);
+    }
+
+    _buildRRMatchCard(match, tournament, isAdmin) {
+        const card = document.createElement('div');
+        card.className = 'rr-match-card' + (match.completed ? ' completed' : '') +
+            (isAdmin && match.player1 && match.player2 && !match.isBye ? ' clickable' : '');
+
+        if (isAdmin && match.player1 && match.player2) {
+            card.onclick = () => this.openMatchModal(match.id);
+        }
+
+        const p1 = match.player1;
+        const p2 = match.player2;
+        const p1Win = match.winner && p1 && match.winner.id === p1.id;
+        const p2Win = match.winner && p2 && match.winner.id === p2.id;
+
+        const seed1 = p1 ? this.getSeedNumber(p1) : '–';
+        const seed2 = p2 ? this.getSeedNumber(p2) : '–';
+        const name1 = p1 ? this.escapeHtml(p1.name) : '<span class="bk-tbd">Por definir</span>';
+        const name2 = p2 ? this.escapeHtml(p2.name) : '<span class="bk-tbd">Por definir</span>';
+
+        // Build sets badges
+        const buildSets = (playerNum) => {
+            if (!match.completed || !match.sets || !match.sets.length) return '';
+            return match.sets.map(s => {
+                const myScore = playerNum === 1 ? s.p1 : s.p2;
+                const theirScore = playerNum === 1 ? s.p2 : s.p1;
+                const win = myScore > theirScore;
+                return '<span class="bk-set ' + (win ? 'bk-set-win' : 'bk-set-loss') + '">' + myScore + '</span>';
+            }).join('');
+        };
+
+        const hintText = match.completed ? 'Editar' : 'Resultado';
+
+        card.innerHTML =
+            '<div class="bk-card-header">' +
+                '<span class="bk-round-label">Partido ' + match.matchNumber + '</span>' +
+                (isAdmin && match.player1 && match.player2 ? '<span class="bk-edit-hint">' + hintText + '</span>' : '') +
+                (match.completed ? '<span class="bk-done-dot"></span>' : '') +
+            '</div>' +
+            '<div class="bk-row ' + (p1Win ? 'win' : match.completed ? 'loss' : '') + '">' +
+                '<span class="bk-seed">' + seed1 + '</span>' +
+                '<span class="bk-name">' + name1 + '</span>' +
+                '<span class="bk-sets-wrap">' + buildSets(1) + '</span>' +
+                (match.completed ? '<span class="bk-sets-total ' + (p1Win ? 'bk-sets-total-win' : '') + '">' + match.score1 + '</span>' : '') +
+            '</div>' +
+            '<div class="bk-divider"></div>' +
+            '<div class="bk-row ' + (p2Win ? 'win' : match.completed && p2 ? 'loss' : '') + '">' +
+                '<span class="bk-seed">' + seed2 + '</span>' +
+                '<span class="bk-name">' + name2 + '</span>' +
+                '<span class="bk-sets-wrap">' + buildSets(2) + '</span>' +
+                (match.completed ? '<span class="bk-sets-total ' + (p2Win ? 'bk-sets-total-win' : '') + '">' + match.score2 + '</span>' : '') +
+            '</div>';
+
+        return card;
+    }
+
+    _buildRRStandingsHTML(tournament) {
+        const stats = {};
+        tournament.players.forEach(p => {
+            stats[p.id] = { player: p, pj: 0, pg: 0, pp: 0, sw: 0, sl: 0, pts: 0 };
+        });
+
+        tournament.matches.forEach(m => {
+            if (!m.completed) return;
+            const s1 = stats[m.player1?.id];
+            const s2 = stats[m.player2?.id];
+            if (!s1 || !s2) return;
+
+            s1.pj++; s2.pj++;
+            const sets1 = m.score1 || 0;
+            const sets2 = m.score2 || 0;
+            s1.sw += sets1; s1.sl += sets2;
+            s2.sw += sets2; s2.sl += sets1;
+
+            if (m.winner.id === m.player1.id) {
+                s1.pg++; s1.pts += 3;
+                s2.pp++;
+            } else {
+                s2.pg++; s2.pts += 3;
+                s1.pp++;
+            }
+        });
+
+        const sorted = Object.values(stats).sort((a, b) => {
+            if (b.pts !== a.pts) return b.pts - a.pts;
+            if (b.pg !== a.pg) return b.pg - a.pg;
+            const diffA = a.sw - a.sl, diffB = b.sw - b.sl;
+            return diffB - diffA;
+        });
+
+        const totalMatches = tournament.matches.length;
+        const completedMatches = tournament.matches.filter(m => m.completed).length;
+        const allDone = completedMatches === totalMatches;
+
+        let html = '<div class="rr-standings">';
+        html += '<div class="rr-standings-title">' +
+            '<svg width="14" height="14"><use href="#ic-list"/></svg>' +
+            ' Tabla de posiciones' +
+            (allDone ? ' <span class="rr-final-badge">Final</span>' : ' <span class="rr-partial-badge">' + completedMatches + '/' + totalMatches + '</span>') +
+        '</div>';
+
+        html += '<div class="rr-standings-table">';
+        html += '<div class="rr-st-header">' +
+            '<span class="rr-st-pos">#</span>' +
+            '<span class="rr-st-name">Jugador</span>' +
+            '<span class="rr-st-stat">PJ</span>' +
+            '<span class="rr-st-stat">PG</span>' +
+            '<span class="rr-st-stat">PP</span>' +
+            '<span class="rr-st-stat">Sets</span>' +
+            '<span class="rr-st-pts">Pts</span>' +
+        '</div>';
+
+        sorted.forEach((s, i) => {
+            const posClass = i === 0 && allDone ? 'rr-pos-1' : i === 1 && allDone ? 'rr-pos-2' : i === 2 && allDone ? 'rr-pos-3' : '';
+            const medal = i === 0 && allDone ? '🥇' : i === 1 && allDone ? '🥈' : i === 2 && allDone ? '🥉' : (i + 1);
+            html += '<div class="rr-st-row ' + posClass + '">' +
+                '<span class="rr-st-pos">' + medal + '</span>' +
+                '<span class="rr-st-name">' + this.escapeHtml(s.player.name) + '</span>' +
+                '<span class="rr-st-stat rr-st-muted">' + s.pj + '</span>' +
+                '<span class="rr-st-stat rr-st-win">' + s.pg + '</span>' +
+                '<span class="rr-st-stat rr-st-loss">' + s.pp + '</span>' +
+                '<span class="rr-st-stat rr-st-muted">' + s.sw + '–' + s.sl + '</span>' +
+                '<span class="rr-st-pts">' + s.pts + '</span>' +
+            '</div>';
+        });
+
+        html += '</div></div>';
+        return html;
+    }
+
+    _renderSingleEliminationBracket(tournament, container, isAdmin) {
         const totalRounds = tournament.bracket.rounds;
+        const completed = tournament.matches.filter(m => m.completed).length;
         const roundNames = this.getRoundNames(totalRounds);
 
         // Group matches by round
@@ -1765,10 +2026,14 @@ class TournamentApp {
         match.winner = newWinner;
         match.completed = true;
 
-        if (wasCompleted && oldWinner && newWinner.id !== oldWinner.id) {
-            this._cascadeWinnerChange(match, oldWinner, newWinner, tournament);
-        } else if (!wasCompleted) {
-            this.advanceWinner(match, tournament);
+        const isRoundRobin = tournament.bracket.type === 'round-robin';
+
+        if (!isRoundRobin) {
+            if (wasCompleted && oldWinner && newWinner.id !== oldWinner.id) {
+                this._cascadeWinnerChange(match, oldWinner, newWinner, tournament);
+            } else if (!wasCompleted) {
+                this.advanceWinner(match, tournament);
+            }
         }
 
         this._saveTournament(tournament);
@@ -1780,13 +2045,22 @@ class TournamentApp {
         if (wasCompleted) {
             this.showToast('Resultado actualizado: ' + newWinner.name + ' (' + setStr + ')', 'success');
         } else {
-            this.showToast(newWinner.name + ' avanza · ' + setStr + ' sets', 'success');
+            this.showToast(newWinner.name + ' gana · ' + setStr + ' sets', 'success');
         }
 
-        const finalMatch = tournament.matches.find(m => m.round === tournament.bracket.rounds);
-        if (finalMatch && finalMatch.completed) {
+        // Check if tournament is complete
+        const allDone = tournament.matches.every(m => m.completed);
+        if (allDone) {
             setTimeout(() => {
-                this.showToast('¡Campeón: ' + finalMatch.winner.name + '!', 'success');
+                if (isRoundRobin) {
+                    const stats = this._calcRRStats(tournament);
+                    this.showToast('¡Torneo completado! Campeón: ' + stats[0].player.name, 'success');
+                } else {
+                    const finalMatch = tournament.matches.find(m => m.round === tournament.bracket.rounds);
+                    if (finalMatch && finalMatch.completed) {
+                        this.showToast('¡Campeón: ' + finalMatch.winner.name + '!', 'success');
+                    }
+                }
                 this.switchTournamentView('results');
             }, 500);
         }
@@ -1837,6 +2111,28 @@ class TournamentApp {
         }
     }
 
+    _calcRRStats(tournament) {
+        const stats = {};
+        tournament.players.forEach(p => {
+            stats[p.id] = { player: p, pj: 0, pg: 0, pp: 0, sw: 0, sl: 0, pts: 0 };
+        });
+        tournament.matches.forEach(m => {
+            if (!m.completed || !m.player1 || !m.player2) return;
+            const s1 = stats[m.player1.id], s2 = stats[m.player2.id];
+            if (!s1 || !s2) return;
+            s1.pj++; s2.pj++;
+            s1.sw += m.score1 || 0; s1.sl += m.score2 || 0;
+            s2.sw += m.score2 || 0; s2.sl += m.score1 || 0;
+            if (m.winner.id === m.player1.id) { s1.pg++; s1.pts += 3; s2.pp++; }
+            else { s2.pg++; s2.pts += 3; s1.pp++; }
+        });
+        return Object.values(stats).sort((a, b) => {
+            if (b.pts !== a.pts) return b.pts - a.pts;
+            if (b.pg !== a.pg) return b.pg - a.pg;
+            return (b.sw - b.sl) - (a.sw - a.sl);
+        });
+    }
+
     // ============================================================
     // RESULTS & STATS (BOTH ROLES)
     // ============================================================
@@ -1856,7 +2152,13 @@ class TournamentApp {
             return;
         }
 
-        const standings = this.calculateStandings(tournament);
+        const standings = tournament.bracket.type === 'round-robin'
+            ? this._calcRRStats(tournament).map((s, i) => ({
+                name: s.player.name, seed: i + 1,
+                matchesWon: s.pg, matchesLost: s.pp,
+                pts: s.pts, setsWon: s.sw, setsLost: s.sl
+              }))
+            : this.calculateStandings(tournament);
         const stats = this.calculateStats(tournament);
         const totalRounds = tournament.bracket.rounds;
         const finalMatch = tournament.matches.find(m => m.round === totalRounds);
