@@ -5,13 +5,15 @@
    ============================================================ */
 
 // ── Firebase setup ──────────────────────────────────────────
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import {
+    getFirestore, collection, doc,
+    getDocs, setDoc, deleteDoc, onSnapshot,
+    serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// 🔴 PASTE YOUR FIREBASE CONFIG HERE
+// Go to: https://console.firebase.google.com → New project → Firestore → Web app
 const firebaseConfig = {
   apiKey: "AIzaSyBqb7iWy2tVg8CrahupuBQpGM19eXSaedU",
   authDomain: "torneos-admin.firebaseapp.com",
@@ -22,9 +24,14 @@ const firebaseConfig = {
   measurementId: "G-27FWLK4W1Z"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+let db = null;
+try {
+    const firebaseApp = initializeApp(firebaseConfig);
+    db = getFirestore(firebaseApp);
+    console.log('Firebase connected');
+} catch(e) {
+    console.warn('Firebase not configured — using localStorage fallback', e.message);
+}
 // ───────────────────────────────────────────────────────────
 
 class TournamentApp {
