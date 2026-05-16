@@ -5,32 +5,26 @@
    ============================================================ */
 
 // ── Firebase setup ──────────────────────────────────────────
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import {
-    getFirestore, collection, doc,
-    getDocs, setDoc, deleteDoc, onSnapshot,
-    serverTimestamp
-} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
-// 🔴 PASTE YOUR FIREBASE CONFIG HERE
-// Go to: https://console.firebase.google.com → New project → Firestore → Web app
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-    apiKey: "REPLACE_WITH_YOUR_API_KEY",
-    authDomain: "REPLACE_WITH_YOUR_AUTH_DOMAIN",
-    projectId: "REPLACE_WITH_YOUR_PROJECT_ID",
-    storageBucket: "REPLACE_WITH_YOUR_STORAGE_BUCKET",
-    messagingSenderId: "REPLACE_WITH_YOUR_SENDER_ID",
-    appId: "REPLACE_WITH_YOUR_APP_ID"
+  apiKey: "AIzaSyBqb7iWy2tVg8CrahupuBQpGM19eXSaedU",
+  authDomain: "torneos-admin.firebaseapp.com",
+  projectId: "torneos-admin",
+  storageBucket: "torneos-admin.firebasestorage.app",
+  messagingSenderId: "55613701770",
+  appId: "1:55613701770:web:70734984b8a4b3d5927773",
+  measurementId: "G-27FWLK4W1Z"
 };
 
-let db = null;
-try {
-    const firebaseApp = initializeApp(firebaseConfig);
-    db = getFirestore(firebaseApp);
-    console.log('Firebase connected');
-} catch(e) {
-    console.warn('Firebase not configured — using localStorage fallback', e.message);
-}
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 // ───────────────────────────────────────────────────────────
 
 class TournamentApp {
