@@ -1,24 +1,58 @@
 /* ============================================================
    TOURNAMENT MANAGER - MULTI-TOURNAMENT APP CON ROLES
    Roles: admin (gestión completa) | viewer (solo lectura)
+   Backend: Firebase Firestore (free tier)
    ============================================================ */
+
+// ── Firebase setup ──────────────────────────────────────────
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import {
+    getFirestore, collection, doc,
+    getDocs, setDoc, deleteDoc, onSnapshot,
+    serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// 🔴 PASTE YOUR FIREBASE CONFIG HERE
+// Go to: https://console.firebase.google.com → New project → Firestore → Web app
+const firebaseConfig = {
+    apiKey: "REPLACE_WITH_YOUR_API_KEY",
+    authDomain: "REPLACE_WITH_YOUR_AUTH_DOMAIN",
+    projectId: "REPLACE_WITH_YOUR_PROJECT_ID",
+    storageBucket: "REPLACE_WITH_YOUR_STORAGE_BUCKET",
+    messagingSenderId: "REPLACE_WITH_YOUR_SENDER_ID",
+    appId: "REPLACE_WITH_YOUR_APP_ID"
+};
+
+let db = null;
+try {
+    const firebaseApp = initializeApp(firebaseConfig);
+    db = getFirestore(firebaseApp);
+    console.log('Firebase connected');
+} catch(e) {
+    console.warn('Firebase not configured — using localStorage fallback', e.message);
+}
+// ───────────────────────────────────────────────────────────
 
 class TournamentApp {
     constructor() {
         this.tournaments = [];
         this.currentTournamentId = null;
-        this.currentUser = null;  // { role: 'admin'|'viewer', name: '...' }
+        this.currentUser = null;
         this.tournamentToDelete = null;
         this.currentMatch = null;
 
-        this.init();
+        this.init().catch(e => console.error('Init error:', e));
     }
 
     // ============================================================
     // AUTH / ROLES
     // ============================================================
-    init() {
-        this.loadData();
+    async init() {
+        // Show loading overlay while data loads
+        this._showLoadingOverlay(true);
+
+        await this.loadData();
+        this._showLoadingOverlay(false);
 
         // Check if user is already logged in
         const savedUser = localStorage.getItem('tournament_user_role');
@@ -35,6 +69,22 @@ class TournamentApp {
         const today = new Date().toISOString().split('T')[0];
         const dateInput = document.getElementById('tournament-date');
         if (dateInput) dateInput.value = today;
+    }
+
+    _showLoadingOverlay(show) {
+        let el = document.getElementById('loading-overlay');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'loading-overlay';
+            el.className = 'loading-overlay';
+            el.innerHTML = `
+                <div class="loading-card">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Cargando torneos...</div>
+                </div>`;
+            document.body.appendChild(el);
+        }
+        el.style.display = show ? 'flex' : 'none';
     }
 
     login(role) {
@@ -72,11 +122,40 @@ class TournamentApp {
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'block';
 
-        // Apply role-based UI
         this.applyRoleUI();
-
-        // Show tournaments list
         this.switchMainView('tournaments');
+
+        // Show setup banner only for admin when Firebase not configured
+        const notConfigured = !db || firebaseConfig.projectId === 'REPLACE_WITH_YOUR_PROJECT_ID';
+        const bannerId = 'firebase-setup-banner';
+        let banner = document.getElementById(bannerId);
+
+        if (notConfigured && this.isAdmin()) {
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = bannerId;
+                banner.className = 'setup-banner';
+                banner.innerHTML = `
+                    <div class="setup-banner-icon">
+                        <svg width="18" height="18"><use href="#ic-alert"/></svg>
+                    </div>
+                    <div class="setup-banner-text">
+                        <div class="setup-banner-title">Modo local — datos guardados en este navegador</div>
+                        <div class="setup-banner-desc">
+                            Para activar la nube: configura Firebase en <code>app.js</code> (líneas con REPLACE_WITH_YOUR...).
+                            <a href="https://console.firebase.google.com" target="_blank">Ir a Firebase Console →</a>
+                        </div>
+                    </div>
+                    <button onclick="document.getElementById('${bannerId}').remove()" style="background:none;border:none;cursor:pointer;color:var(--gray-400);padding:4px;flex-shrink:0;">
+                        <svg width="16" height="16"><use href="#ic-x"/></svg>
+                    </button>`;
+                // Insert after header, before main
+                const main = document.querySelector('.main');
+                if (main) main.parentNode.insertBefore(banner, main);
+            }
+        } else if (banner) {
+            banner.remove();
+        }
     }
 
     applyRoleUI() {
@@ -162,26 +241,100 @@ class TournamentApp {
     }
 
     // ============================================================
-    // DATA PERSISTENCE
+    // DATA PERSISTENCE — Firebase Firestore with localStorage fallback
     // ============================================================
-    loadData() {
+    async loadData() {
+        const isFirebaseReady = db && firebaseConfig.projectId !== 'REPLACE_WITH_YOUR_PROJECT_ID';
+
+        if (isFirebaseReady) {
+            try {
+                this._showDbStatus('loading');
+                const snap = await getDocs(collection(db, 'tournaments'));
+                this.tournaments = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+                this._showDbStatus('ok');
+            } catch(e) {
+                console.error('Firestore read error:', e);
+                this._loadFromLocalStorage();
+                this._showDbStatus('error');
+            }
+        } else {
+            this._loadFromLocalStorage();
+        }
+    }
+
+    _loadFromLocalStorage() {
         try {
             const saved = localStorage.getItem('tournament_manager_data');
             if (saved) {
                 const data = JSON.parse(saved);
                 this.tournaments = data.tournaments || [];
             }
-        } catch (e) {
-            console.error('Error loading data:', e);
+        } catch(e) { console.error('localStorage read error:', e); }
+    }
+
+    // Always-safe save: localStorage first, Firestore if configured
+    _saveTournament(tournament) {
+        // 1. Always persist to localStorage immediately (sync, never fails)
+        try {
+            localStorage.setItem('tournament_manager_data', JSON.stringify({
+                tournaments: this.tournaments,
+                version: '4.0'
+            }));
+        } catch(e) {
+            console.error('localStorage write error:', e);
+        }
+
+        // 2. Optionally sync to Firestore in the background
+        const isFirebaseReady = db && firebaseConfig.projectId !== 'REPLACE_WITH_YOUR_PROJECT_ID';
+        if (isFirebaseReady) {
+            try {
+                const ref = doc(db, 'tournaments', tournament.id);
+                const data = JSON.parse(JSON.stringify(tournament));
+                data.updatedAt = new Date().toISOString();
+                setDoc(ref, data).catch(e => {
+                    console.error('Firestore background save error:', e);
+                });
+            } catch(e) {
+                console.error('Firestore save setup error:', e);
+            }
         }
     }
 
-    saveData() {
-        const data = {
-            tournaments: this.tournaments,
-            version: '3.0'
+    // Delete: localStorage first, Firestore if configured
+    _deleteTournament(tournamentId) {
+        try {
+            localStorage.setItem('tournament_manager_data', JSON.stringify({
+                tournaments: this.tournaments,
+                version: '4.0'
+            }));
+        } catch(e) {}
+
+        const isFirebaseReady = db && firebaseConfig.projectId !== 'REPLACE_WITH_YOUR_PROJECT_ID';
+        if (isFirebaseReady) {
+            deleteDoc(doc(db, 'tournaments', tournamentId)).catch(e => {
+                console.error('Firestore delete error:', e);
+            });
+        }
+    }
+
+    _showDbStatus(status) {
+        let el = document.getElementById('db-status');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'db-status';
+            el.className = 'db-status';
+            document.getElementById('app').appendChild(el);
+        }
+        const map = {
+            loading: { cls: 'db-loading', html: '<span class="db-dot"></span> Cargando datos...' },
+            ok:      { cls: 'db-ok',      html: '<span class="db-dot"></span> Firestore' },
+            error:   { cls: 'db-error',   html: '<span class="db-dot"></span> Sin conexión (modo local)' },
         };
-        localStorage.setItem('tournament_manager_data', JSON.stringify(data));
+        const s = map[status] || map.ok;
+        el.className = 'db-status ' + s.cls;
+        el.innerHTML = s.html;
+        if (status === 'ok') setTimeout(() => { if(el) el.style.opacity = '0'; }, 3000);
+        else el.style.opacity = '1';
     }
 
     getCurrentTournament() {
@@ -252,10 +405,6 @@ class TournamentApp {
         if (clearBtn) {
             clearBtn.addEventListener('click', () => this.clearPlayers());
         }
-
-        // Sets format pickers (create + edit tournament forms)
-        this._bindSetsPicker('tournament-sets-format', 'tournament-sets-format-value');
-        this._bindSetsPicker('edit-tournament-sets-format', 'edit-tournament-sets-format-value');
 
         // Generate bracket
         const genBracketBtn = document.getElementById('generate-bracket-btn');
@@ -415,30 +564,22 @@ class TournamentApp {
 
         const name = document.getElementById('tournament-name').value.trim();
         const club = document.getElementById('tournament-club').value.trim();
-        const sport = document.getElementById('tournament-sport').value.trim();
-        const expectedPlayers = parseInt(document.getElementById('tournament-players-count').value);
+        const sport = document.getElementById('tournament-sport').value;
+        const expectedPlayers = parseInt(document.getElementById('tournament-players-count').value) || null;
         const date = document.getElementById('tournament-date').value;
         const format = document.getElementById('tournament-format').value;
-        const setsFormat = parseInt(document.getElementById('tournament-sets-format-value').value) || 3;
+        const setsFormat = parseInt(document.getElementById('tournament-sets-format').value) || 1;
 
-        if (!name) {
-            this.showToast('Ingresa el nombre del torneo', 'error');
-            return;
-        }
-        if (!club) {
-            this.showToast('Ingresa el club u organización', 'error');
-            return;
-        }
+        if (!name) { this.showToast('Ingresa el nombre del torneo', 'error'); return; }
+        if (!club) { this.showToast('Ingresa el club u organización', 'error'); return; }
 
         const tournament = {
             id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
-            name: name,
-            club: club,
+            name, club,
             sport: sport || 'General',
-            expectedPlayers: expectedPlayers || null,
-            date: date,
-            format: format,
-            setsFormat: setsFormat,
+            expectedPlayers,
+            date, format,
+            setsFormat,
             createdAt: new Date().toISOString(),
             players: [],
             bracket: null,
@@ -446,13 +587,14 @@ class TournamentApp {
         };
 
         this.tournaments.push(tournament);
-        this.saveData();
+        this._saveTournament(tournament);
 
         // Clear form
         document.getElementById('tournament-name').value = '';
         document.getElementById('tournament-club').value = '';
         document.getElementById('tournament-sport').value = '';
         document.getElementById('tournament-players-count').value = '';
+        document.getElementById('tournament-sets-format').value = '1';
 
         this.showToast(`Torneo "${name}" creado`, 'success');
         this.openTournament(tournament.id);
@@ -482,8 +624,11 @@ class TournamentApp {
             return;
         }
 
-        this.tournaments = this.tournaments.filter(t => t.id !== this.tournamentToDelete);
-        this.saveData();
+        const id = this.tournamentToDelete;
+        this.tournaments = this.tournaments.filter(t => t.id !== id);
+        this._deleteTournament(id);
+        // mirror to localStorage
+        localStorage.setItem('tournament_manager_data', JSON.stringify({ tournaments: this.tournaments, version: '4.0' }));
         this.closeDeleteModal();
         this.renderTournaments();
         this.showToast('Torneo eliminado', 'warning');
@@ -621,7 +766,7 @@ class TournamentApp {
         tournament.players.push(player);
         tournament.players.sort((a, b) => a.ranking - b.ranking);
 
-        this.saveData();
+        this._saveTournament(tournament);
         this.renderPlayers();
         this.updatePlayerStats();
         this.updateBanners(tournament);
@@ -641,7 +786,7 @@ class TournamentApp {
         if (!tournament) return;
 
         tournament.players = tournament.players.filter(p => p.id !== id);
-        this.saveData();
+        this._saveTournament(tournament);
         this.renderPlayers();
         this.updatePlayerStats();
         this.showToast('Jugador eliminado', 'warning');
@@ -657,7 +802,7 @@ class TournamentApp {
         tournament.players = [];
         tournament.bracket = null;
         tournament.matches = [];
-        this.saveData();
+        this._saveTournament(tournament);
         this.renderPlayers();
         this.updatePlayerStats();
         this.showToast('Todos los jugadores eliminados', 'warning');
@@ -823,7 +968,7 @@ class TournamentApp {
         tournament.matches = round1Matches;
         this.generateSubsequentRounds(tournament);
 
-        this.saveData();
+        this._saveTournament(tournament);
         this.updateBanners(tournament);
         this.switchTournamentView('bracket');
         this.showToast(`Bracket generado · ${n} jugadores, ${byes} byes`, 'success');
@@ -1162,7 +1307,7 @@ class TournamentApp {
                     const champ = document.createElement('div');
                     champ.className = 'bk-champion';
                     champ.style.cssText = `left:${pos.x}px; top:${pos.y + CARD_H + 10}px; width:${CARD_W}px;`;
-                    champ.innerHTML = `🏆 Campeón: <strong>${this.escapeHtml(match.winner.name)}</strong>`;
+                    champ.innerHTML = ` Campeón: <strong>${this.escapeHtml(match.winner.name)}</strong>`;
                     stage.appendChild(champ);
                 }
             });
@@ -1217,13 +1362,7 @@ class TournamentApp {
         document.getElementById('edit-tournament-sport').value = tournament.sport || '';
         document.getElementById('edit-tournament-players-count').value = tournament.expectedPlayers || '';
         document.getElementById('edit-tournament-date').value = tournament.date || '';
-
-        // Set the sets format picker
-        const currentFmt = tournament.setsFormat || 3;
-        document.getElementById('edit-tournament-sets-format-value').value = currentFmt;
-        document.querySelectorAll('#edit-tournament-sets-format .sets-pick-btn').forEach(btn => {
-            btn.classList.toggle('active', parseInt(btn.dataset.sets) === currentFmt);
-        });
+        document.getElementById('edit-tournament-sets-format').value = tournament.setsFormat || 3;
 
         document.getElementById('edit-tournament-modal').classList.add('active');
     }
@@ -1241,10 +1380,10 @@ class TournamentApp {
 
         const name = document.getElementById('edit-tournament-name').value.trim();
         const club = document.getElementById('edit-tournament-club').value.trim();
-        const sport = document.getElementById('edit-tournament-sport').value.trim();
+        const sport = document.getElementById('edit-tournament-sport').value;
         const expectedPlayers = parseInt(document.getElementById('edit-tournament-players-count').value) || null;
         const date = document.getElementById('edit-tournament-date').value;
-        const setsFormat = parseInt(document.getElementById('edit-tournament-sets-format-value').value) || 3;
+        const setsFormat = parseInt(document.getElementById('edit-tournament-sets-format').value) || 3;
 
         if (!name) { this.showToast('El nombre es obligatorio', 'error'); return; }
         if (!club)  { this.showToast('El club es obligatorio', 'error'); return; }
@@ -1256,7 +1395,7 @@ class TournamentApp {
         tournament.date = date;
         tournament.setsFormat = setsFormat;
 
-        this.saveData();
+        this._saveTournament(tournament);
         this.closeEditTournamentModal();
         this.renderTournaments();
 
@@ -1353,7 +1492,7 @@ class TournamentApp {
 
         tournament.players.sort((a, b) => a.ranking - b.ranking);
 
-        this.saveData();
+        this._saveTournament(tournament);
         this.renderPlayers();
         this.updatePlayerStats();
         this.showToast(`Jugador actualizado: ${newName}`, 'success');
@@ -1631,7 +1770,7 @@ class TournamentApp {
             this.advanceWinner(match, tournament);
         }
 
-        this.saveData();
+        this._saveTournament(tournament);
         this.updateBanners(tournament);
         this.renderBracket();
         this.closeModal();
@@ -1908,7 +2047,7 @@ class TournamentApp {
 
         tournament.bracket = null;
         tournament.matches = [];
-        this.saveData();
+        this._saveTournament(tournament);
         this.updateBanners(tournament);
         this.renderBracket();
         this.renderResults();
@@ -2232,7 +2371,7 @@ class TournamentApp {
         tournament.prizesAwardedAt = new Date().toISOString();
         tournament.prizeAwardedPositions = awardedPositions;
 
-        this.saveData();
+        this._saveTournament(tournament);
         this.closePrizeModal();
         this.renderResults();
         this.renderPlayers();
@@ -2339,5 +2478,6 @@ function mapMatchesToBracket(matches) {
   }));
 }
 
-// Initialize app
+// Initialize app and expose globally so onclick= handlers in HTML can reach it
 const app = new TournamentApp();
+window.app = app;
